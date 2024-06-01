@@ -10,6 +10,6 @@ pub fn extract_szs(data: Vec<u8>) -> Result<Vec<(PathBuf, Vec<u8>)>, Yaz0Error> 
     } else {
         data
     };
-    let rarc = Rarc::new(arc.as_slice()).expect("Rarc decompression error!");
+    let rarc = Rarc::decode(arc.as_slice()).expect("Rarc decompression error!");
     Ok(rarc.files().map(|(p, d)| (p, d.to_vec())).collect())
 }

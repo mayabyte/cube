@@ -16,7 +16,7 @@ pub enum RarcError {
 }
 
 impl<'a> Rarc<'a> {
-    pub fn new(data: &'a [u8]) -> Result<Rarc<'a>, RarcError> {
+    pub fn decode(data: &'a [u8]) -> Result<Rarc<'a>, RarcError> {
         if &data[0..4] != b"RARC" {
             return Err(RarcError::MagicError(0));
         }
@@ -36,7 +36,8 @@ impl<'a> Rarc<'a> {
         let num_nodes = read_u32(data, data_header_offset);
         let node_list_offset = read_u32(data, data_header_offset + 0x4) + data_header_offset;
         let total_num_file_entries = read_u32(data, data_header_offset + 0x8);
-        let file_entries_list_offset = read_u32(data, data_header_offset + 0x0C) + data_header_offset;
+        let file_entries_list_offset =
+            read_u32(data, data_header_offset + 0x0C) + data_header_offset;
         let string_list_offset = read_u32(data, data_header_offset + 0x14) + data_header_offset;
         let unk2 = data[data_header_offset as usize + 0x1B];
         let unk3 = data[data_header_offset as usize + 0x1C];
@@ -51,7 +52,11 @@ impl<'a> Rarc<'a> {
 
         let mut files = Vec::with_capacity(total_num_file_entries as usize);
         for file_idx in 0..total_num_file_entries {
-            files.push(RarcFile::read(data, file_entries_list_offset + file_idx * 0x14, string_list_offset));
+            files.push(RarcFile::read(
+                data,
+                file_entries_list_offset + file_idx * 0x14,
+                string_list_offset,
+            ));
         }
 
         Ok(Rarc {
@@ -70,16 +75,21 @@ impl<'a> Rarc<'a> {
             .filter(|(_, file)| ![".", ".."].contains(&&file.name[..]))
             .map(|(mut path, file)| {
                 path.push(&file.name[..]);
-                let file_start = (self.file_data_list_offset + file.data_offset_or_node_index) as usize;
+                let file_start =
+                    (self.file_data_list_offset + file.data_offset_or_node_index) as usize;
                 let file_end = file_start + file.data_size as usize;
                 (path, &self.data[file_start..file_end])
             })
     }
 
     fn files_for_node(&self, node: &RarcNode, parent_path: PathBuf) -> Vec<(PathBuf, &RarcFile)> {
-        let file_entries = &self.files[node.first_file_index as usize..(node.first_file_index + node.num_files as u32) as usize];
+        let file_entries = &self.files[node.first_file_index as usize
+            ..(node.first_file_index + node.num_files as u32) as usize];
         let (dirs, files): (Vec<_>, Vec<_>) = file_entries.iter().partition(|e| e.is_dir());
-        let mut files_with_paths: Vec<_> = files.into_iter().map(|f| (parent_path.clone(), f)).collect();
+        let mut files_with_paths: Vec<_> = files
+            .into_iter()
+            .map(|f| (parent_path.clone(), f))
+            .collect();
         for file in dirs {
             if ![".", ".."].contains(&&file.name[..]) {
                 let sub_node = &self.nodes[file.data_offset_or_node_index as usize];
