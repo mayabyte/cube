@@ -9,7 +9,7 @@ use std::{
 
 use clap::Parser;
 use commands::{Cli, Commands};
-use cube::{bti::BtiImage, szs::extract_szs};
+use cube_rs::{bti::BtiImage, szs::extract_szs};
 use image::{ImageFormat, RgbaImage};
 
 pub fn main() -> Result<(), Box<dyn Error>> {

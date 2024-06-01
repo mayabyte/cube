@@ -1,15 +1,16 @@
 [package]
-name = "cube"
+name = "cube_rs"
 description = "Universal GameCube file format tool"
 repository = "https://github.com/mayabyte/cube"
 license = "MIT"
 readme = "../README.md"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Maya Hayden <mayahayden@protonmail.com>"]
 
 [lib]
-name = "cube"
+name = "cube_rs"
+path = "src/lib.rs"
 
 [dependencies]
 yaz0 = "0.3"
