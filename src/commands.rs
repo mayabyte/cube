@@ -17,11 +17,13 @@ pub enum Commands {
     /// Extract a file based on its file type and metadata
     #[clap(arg_required_else_help = true)]
     Extract {
-        #[clap()]
         files: Vec<PathBuf>,
+
+        #[clap(long)]
+        bti: bool,
     },
 
     /// Pack a file into a GameCube file format
     #[clap(arg_required_else_help = true)]
-    Pack { file: PathBuf },
+    Pack { file: PathBuf, out: Option<PathBuf> },
 }
