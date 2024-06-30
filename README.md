@@ -1,4 +1,7 @@
 # cube
+
+[![Crates.io Version](https://img.shields.io/crates/v/cube_rs.svg)](https://crates.io/crates/cube_rs)
+
 The universal GameCube file format tool.
 
 Currently work in progress. This project is being developed in conjunction with [P2GZ](https://github.com/p2gz/p2gz) and will primarily support features needed for it at first, but aims to eventually support workflows for other games and hacks as well.
@@ -12,28 +15,20 @@ Cube can be used either as a Crate or as a CLI tool. Please use the help command
 1. Use as `cube extract file.szs` etc.
 
 ### Crate
-Add `cube_rs = "0.1.1" to your Cargo.toml.
+`cargo add cube_rs`
 
 ## Features / Roadmap
-- [ ] Extraction
-    - [x] SZS (archives)
-    - [x] RARC (archives)
-    - [ ] SARC (archives)
-    - [x] BTI (images)
-    - [x] Yaz0 (via `yaz0` crate) 
-    - [ ] BMG (text dictionaries)
-    - [ ] BLO (menu screens)
-    - [ ] BMS (music and sounds)
-    - [ ] CND (Pikmin 2 specific(?) music config)
-    - [ ] ISO (disc image)
-- [ ] Packing / Encoding
-    - [x] SZS (archives)
-    - [x] RARC (archives)
-    - [ ] SARC (archives)
-    - [ ] BTI (images)
-    - [x] Yaz0 (compression scheme)
-    - [ ] BMG (text dictionaries)
-    - [ ] BLO (menu screens)
-    - [ ] BMS (music and sounds)
-    - [ ] CND (Pikmin 2 specific(?) music config)
-    - [ ] ISO (disc image)
+- [x] SZS (archives)
+- [x] RARC (archives)
+- [ ] SARC (archives)
+- [ ] BTI (images)
+    - [x] Decoding
+    - [ ] Encoding
+- [x] Yaz0 (compression scheme, via [yaz0](https://crates.io/crates/yaz0)) 
+- [ ] BMG (text dictionaries)
+- [ ] BLO (menu screens)
+- [ ] BMS (music and sounds)
+- [ ] CND (Pikmin 2 specific(?) music config)
+- [ ] ISO (disc images, via [gc-gcm](https://crates.io/crates/gc-gcm))
+    - [x] Decoding
+    - [ ] Encoding
