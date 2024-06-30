@@ -3,7 +3,6 @@ use std::{
     collections::VecDeque,
     fmt::Display,
     fs::{metadata, read, read_dir},
-    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 
@@ -57,7 +56,7 @@ impl<'a> Encode for Rarc<'a> {
         // Initialize the string table
         string_table.extend(b".\0");
         string_table.extend(b"..\0");
-        string_table.extend(root.file_name().unwrap().as_bytes());
+        string_table.extend(root.file_name().unwrap().to_string_lossy().as_bytes());
         string_table.push(b'\0');
 
         let mut dir_queue = VecDeque::new();
