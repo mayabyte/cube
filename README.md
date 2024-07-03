@@ -25,7 +25,7 @@ Cube can be used either as a Crate or as a CLI tool. Please use the help command
     - [x] Decoding
     - [ ] Encoding
 - [x] Yaz0 (compression scheme, via [yaz0](https://crates.io/crates/yaz0)) 
-- [ ] BMG (text dictionaries)
+- [x] BMG (text dictionaries)
 - [ ] BLO (menu screens)
 - [ ] BMS (music and sounds)
 - [ ] CND (Pikmin 2 specific(?) music config)
