@@ -11,5 +11,5 @@ pub trait Encode {
 /// For turning files in GCN formats into 'normal' file formats
 pub trait Decode {
     type Out;
-    fn decode<P: AsRef<Path>>(&self) -> Self::Out;
+    fn decode(&self) -> Self::Out;
 }

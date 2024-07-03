@@ -25,7 +25,7 @@ pub struct Rarc<'a> {
 
 impl<'a> Decode for Rarc<'a> {
     type Out = Vec<VirtualFile>;
-    fn decode<P: AsRef<Path>>(&self) -> Self::Out {
+    fn decode(&self) -> Self::Out {
         self.files()
             .map(|(path, bytes)| VirtualFile {
                 path,

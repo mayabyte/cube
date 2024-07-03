@@ -1,16 +1,20 @@
-use std::borrow::Cow;
 use encoding_rs::SHIFT_JIS;
+use std::borrow::Cow;
 
 pub fn read_u16(data: &[u8], offset: u32) -> u16 {
-    u16::from_be_bytes(data[offset as usize..offset as usize+2].try_into().unwrap())
+    u16::from_be_bytes(data[offset as usize..offset as usize + 2].try_into().unwrap())
 }
 
 pub fn read_u32(data: &[u8], offset: u32) -> u32 {
-    u32::from_be_bytes(data[offset as usize..offset as usize+4].try_into().unwrap())
+    u32::from_be_bytes(data[offset as usize..offset as usize + 4].try_into().unwrap())
+}
+
+pub fn read_u64(data: &[u8], offset: u32) -> u64 {
+    u64::from_be_bytes(data[offset as usize..offset as usize + 8].try_into().unwrap())
 }
 
 pub fn read_str(data: &[u8], offset: u32, len: u32) -> Cow<'_, str> {
-    SHIFT_JIS.decode(&data[offset as usize .. (offset+len) as usize]).0
+    SHIFT_JIS.decode(&data[offset as usize..(offset + len) as usize]).0
 }
 
 pub fn read_str_until_null(data: &[u8], offset: u32) -> Cow<'_, str> {
@@ -19,4 +23,10 @@ pub fn read_str_until_null(data: &[u8], offset: u32) -> Cow<'_, str> {
         i += 1;
     }
     read_str(data, offset, i as u32)
+}
+
+pub fn pad_to(buf: &mut Vec<u8>, align: usize) {
+    while buf.len() % align != 0 {
+        buf.push(0);
+    }
 }

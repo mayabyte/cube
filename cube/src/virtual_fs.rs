@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs::read,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Clone)]
 pub struct VirtualFile {
@@ -7,10 +10,19 @@ pub struct VirtualFile {
 }
 
 impl VirtualFile {
-    pub fn with_path(&self, new_path: impl AsRef<Path>) -> Self {
+    pub fn read<P: AsRef<Path>>(path: P) -> Result<Self, std::io::Error> {
+        let path = path.as_ref();
+        let bytes = read(path)?;
+        Ok(VirtualFile {
+            path: path.to_owned(),
+            bytes,
+        })
+    }
+
+    pub fn with_path(self, new_path: impl AsRef<Path>) -> Self {
         VirtualFile {
             path: new_path.as_ref().to_path_buf(),
-            bytes: self.bytes.clone(),
+            bytes: self.bytes,
         }
     }
 

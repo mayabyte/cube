@@ -1,6 +1,9 @@
 /target
 *.szs
 *.bti
+*.bti.png
 *.rarc
 *.arc
 *.iso
+*.bmg
+*.bmg.json
