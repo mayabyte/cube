@@ -7,10 +7,11 @@ use std::{
 use cube_rs::{bmg::Bmg, rarc::Rarc, virtual_fs::VirtualFile, Encode};
 
 pub fn try_pack(file: PathBuf, out: Option<&Path>) -> Result<(), Box<dyn Error>> {
-    let out_format = out
-        .map(|p| p.extension())
-        .flatten()
-        .map(|ext| ext.to_string_lossy().to_ascii_lowercase());
+    let out_format = out.map(|p| {
+        p.extension()
+            .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or(String::from(""))
+    });
     let vfile = pack(&file, out_format.as_deref())?;
     write(out.unwrap_or(&vfile.path), &vfile.bytes)?;
     Ok(())
@@ -20,7 +21,6 @@ pub fn try_pack(file: PathBuf, out: Option<&Path>) -> Result<(), Box<dyn Error>>
 /// or the original file contents unmodified if no packing scheme could be determined
 fn pack(path: &Path, format: Option<&str>) -> Result<VirtualFile, Box<dyn Error>> {
     let dest_format = format.or(guess_dest_format(path));
-    println!("{:?}", dest_format);
     match dest_format {
         Some("szs") => Ok(Rarc::encode(path)?),
         Some("bmg") => {
@@ -38,13 +38,11 @@ fn pack(path: &Path, format: Option<&str>) -> Result<VirtualFile, Box<dyn Error>
 fn guess_dest_format(path: &Path) -> Option<&'static str> {
     let path_str = path.to_string_lossy();
     if path.is_dir() {
-        if path_str.ends_with(".szs") {
-            return Some("szs");
-        }
+        return Some("szs");
     } else {
-        if path_str.ends_with("bmg.json") {
+        if path_str.ends_with("json") {
             return Some("bmg");
-        } else if path_str.ends_with("bti.png") {
+        } else if path_str.ends_with("png") {
             return Some("bti");
         }
     }

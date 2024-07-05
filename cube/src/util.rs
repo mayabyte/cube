@@ -1,5 +1,5 @@
 use encoding_rs::SHIFT_JIS;
-use std::borrow::Cow;
+use std::{borrow::Cow, num::ParseIntError};
 
 pub fn read_u16(data: &[u8], offset: u32) -> u16 {
     u16::from_be_bytes(data[offset as usize..offset as usize + 2].try_into().unwrap())
@@ -29,4 +29,19 @@ pub fn pad_to(buf: &mut Vec<u8>, align: usize) {
     while buf.len() % align != 0 {
         buf.push(0);
     }
+}
+
+pub fn to_hex_string(bytes: &[u8]) -> String {
+    let mut out = String::new();
+    for b in bytes {
+        out.push_str(&format!("{:02X}", b));
+    }
+    out
+}
+
+pub fn from_hex_string(string: &str) -> Result<Vec<u8>, ParseIntError> {
+    (0..string.len() / 2)
+        .into_iter()
+        .map(|idx| u8::from_str_radix(&string[idx * 2..(idx * 2) + 2], 16))
+        .collect()
 }

@@ -1,4 +1,4 @@
-use crate::util::{pad_to, read_u16, read_u32, read_u64};
+use crate::util::{from_hex_string, pad_to, read_u16, read_u32, read_u64, to_hex_string};
 use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_8, WINDOWS_1252};
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -113,7 +113,7 @@ impl Bmg {
             .iter()
             .enumerate()
             .map(|(idx, index_entry)| {
-                let attributes = index_entry.attributes.clone();
+                let attributes = to_hex_string(&index_entry.attributes);
                 let message = self
                     .header
                     .encoding
@@ -145,8 +145,10 @@ impl Bmg {
 
     pub fn add_message(&mut self, message: BmgMessage) {
         let encoded_message = self.header.encoding.encode(&message.message);
-        self.text_index_table
-            .add_message(self.string_pool.strings.len() as u32, message.attributes);
+        self.text_index_table.add_message(
+            self.string_pool.strings.len() as u32,
+            from_hex_string(&message.attributes).expect("Invalid hex string for message attributes"),
+        );
         self.string_pool.add_message(&encoded_message);
         if let Some(message_id) = message.index {
             self.message_id_table_mut().add_message(message_id);
@@ -211,7 +213,7 @@ impl<'de> Deserialize<'de> for Bmg {
 pub struct BmgMessage {
     pub message: String,
     pub index: Option<MessageId>,
-    pub attributes: Vec<u8>,
+    pub attributes: String,
 }
 
 /// The minimum set of metadata needed to perfectly reconstruct the BMG from a serialized format,

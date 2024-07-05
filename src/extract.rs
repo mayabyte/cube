@@ -1,7 +1,7 @@
 use crate::commands::ExtractOptions;
 use cube_rs::{bmg::Bmg, bti::BtiImage, iso::extract_iso, szs::extract_szs, virtual_fs::VirtualFile};
 use image::{ImageFormat, RgbaImage};
-use log::{error, info};
+use log::{debug, error, info};
 use std::{
     error::Error,
     fs::{create_dir_all, write},
@@ -10,14 +10,16 @@ use std::{
 };
 
 pub fn try_extract(files: Vec<PathBuf>, out: Option<&Path>, options: ExtractOptions) -> Result<(), Box<dyn Error>> {
-    let extracted_files: Vec<VirtualFile> = files
-        .iter()
-        .flat_map(|file_path| {
-            let vfile = VirtualFile::read(file_path)?;
-            extract(vfile, options)
-        })
-        .flatten()
-        .collect();
+    for path in files {
+        extract_and_write(&path, out, options)?;
+    }
+
+    Ok(())
+}
+
+fn extract_and_write(path: &Path, out_path: Option<&Path>, options: ExtractOptions) -> Result<(), Box<dyn Error>> {
+    let vfile = VirtualFile::read(path)?;
+    let extracted_files = extract(vfile, options)?;
 
     if extracted_files.len() < 1 {
         return Err("No output files?".into());
@@ -26,23 +28,20 @@ pub fn try_extract(files: Vec<PathBuf>, out: Option<&Path>, options: ExtractOpti
     // If we have exactly one extracted file, the output path becomes its filename
     if extracted_files.len() == 1 {
         let out_file = &extracted_files[0];
-        let out_path = out.unwrap_or(&out_file.path);
+        let out_path = out_path.unwrap_or(&out_file.path);
         create_dir_all(out_path.parent().expect("Path has no parent"))?;
         write(out_path, &out_file.bytes)?;
     }
     // We have multiple extracted files.
     else {
-        let mut parent = None;
         // If the user provided an output path, that becomes the name of the folder
         // we put them in.
-        if let Some(out_path) = out {
-            parent = Some(out_path.to_owned());
-        }
-        // If the user did not provide an output path but provided exactly one input
-        // file, we use the name of that input file minus its file extension as the
-        // output folder name
-        else if files.len() == 1 {
-            let out_path = files[0].with_extension("");
+        let mut parent = out_path.map(ToOwned::to_owned);
+
+        // If the user did not provide an output path we use the name of the input
+        // file minus its file extension as the output folder name
+        if parent.is_none() {
+            let out_path = path.with_extension("");
             // ... unless all the extracted files already start with this path
             let should_create_folder = !extracted_files.iter().all(|ef| ef.path.starts_with(&out_path));
             if should_create_folder {
@@ -54,8 +53,9 @@ pub fn try_extract(files: Vec<PathBuf>, out: Option<&Path>, options: ExtractOpti
 
         for mut extracted in extracted_files {
             if let Some(out_path) = &parent {
-                extracted.set_path(out_path.join(&extracted.path));
+                extracted.set_path(out_path.join(&extracted.path.strip_prefix(path).unwrap_or(&extracted.path)));
             }
+            debug!("Writing file {:?}", &extracted.path);
             create_dir_all(&extracted.path.parent().expect("Path has no parent"))?;
             write(extracted.path, &extracted.bytes)?;
         }
