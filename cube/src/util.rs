@@ -25,12 +25,6 @@ pub fn read_str_until_null(data: &[u8], offset: u32) -> Cow<'_, str> {
     read_str(data, offset, i as u32)
 }
 
-pub fn pad_to(buf: &mut Vec<u8>, align: usize) {
-    while buf.len() % align != 0 {
-        buf.push(0);
-    }
-}
-
 pub fn to_hex_string(bytes: &[u8]) -> String {
     let mut out = String::new();
     for b in bytes {

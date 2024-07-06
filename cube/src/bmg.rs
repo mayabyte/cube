@@ -1,4 +1,4 @@
-use crate::util::{from_hex_string, pad_to, read_u16, read_u32, read_u64, to_hex_string};
+use crate::util::{from_hex_string, read_u16, read_u32, read_u64, to_hex_string};
 use encoding_rs::{SHIFT_JIS, UTF_16BE, UTF_8, WINDOWS_1252};
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,8 @@ impl Bmg {
         let mut section_start = BmgHeader::SIZE;
         for _ in 0..bmg.header.num_blocks {
             // align if necessary
-            while bmg.is_block_aligned() && section_start % 32 != 0 {
+            let alignment = bmg.block_padding();
+            while section_start % alignment != 0 {
                 section_start += 1;
             }
 
@@ -73,30 +74,41 @@ impl Bmg {
 
     pub fn write(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.header.file_size as usize);
+        let mut final_file_size = BmgHeader::SIZE as usize; // Header always this size
+        let align = self.block_padding() as u32;
+
         out.extend(self.header.write());
-        out.extend(self.text_index_table.write());
-        if self.is_block_aligned() {
-            pad_to(&mut out, 32);
-        }
-        out.extend(self.string_pool.write());
+
+        let text_index_table = self.text_index_table.write(align);
+        final_file_size += text_index_table.len();
+        out.extend(text_index_table);
+
+        let string_pool = self.string_pool.write(align);
+        final_file_size += string_pool.len();
+        out.extend(string_pool);
+
         if let Some(message_id_table) = self.message_id_table.as_ref() {
-            if self.is_block_aligned() {
-                pad_to(&mut out, 32);
-            }
-            out.extend(message_id_table.write());
+            let message_id_table = message_id_table.write(align);
+            final_file_size += message_id_table.len();
+            out.extend(message_id_table);
         }
+
         for unk_section in self.unknown_sections.iter() {
-            if self.is_block_aligned() {
-                pad_to(&mut out, 32);
-            }
-            out.extend(unk_section.write());
+            let unk_section = unk_section.write(align);
+            final_file_size += unk_section.len();
+            out.extend(unk_section);
         }
+
+        out[0x8..0xC].copy_from_slice(&(final_file_size as u32).to_be_bytes());
 
         out
     }
 
-    fn is_block_aligned(&self) -> bool {
-        self.header.encoding == TextEncoding::Undefined || self.header.encoding == TextEncoding::ShiftJIS
+    fn block_padding(&self) -> usize {
+        match self.header.encoding {
+            TextEncoding::Undefined | TextEncoding::ShiftJIS => 32,
+            _ => 0,
+        }
         // ShiftJIS isn't said to be block aligned in the MKWii docs, but it appears
         // to be based on Pikmin 2's main BMG file
     }
@@ -488,16 +500,20 @@ impl TextIndexTable {
         })
     }
 
-    pub fn write(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(self.section_size as usize);
+    pub fn write(&self, align: u32) -> Vec<u8> {
+        let padding = (align - (self.section_size % align)) % align;
+        let final_section_size = self.section_size + padding;
+
+        let mut out = Vec::with_capacity(final_section_size as usize);
         out.extend(TextIndexTable::MAGIC);
-        out.extend(self.section_size.to_be_bytes());
+        out.extend(final_section_size.to_be_bytes());
         out.extend(self.num_entries.to_be_bytes());
         out.extend(self.entry_size.to_be_bytes());
         out.extend(self.bmg_file_id.to_be_bytes());
         out.push(self.default_color);
         out.push(self._unk1);
         out.extend(self.messages.iter().map(|entry| entry.write()).flatten());
+        out.extend(vec![0; padding as usize]);
 
         out
     }
@@ -548,7 +564,7 @@ struct TextIndexEntry {
 impl TextIndexEntry {
     pub fn write(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(4 + self.attributes.len());
-        out.extend((self.text_offset + 1).to_be_bytes());
+        out.extend((self.text_offset).to_be_bytes());
         out.extend(&self.attributes);
         out
     }
@@ -574,8 +590,8 @@ impl StringPool {
 
     pub fn new() -> StringPool {
         StringPool {
-            section_size: 8,
-            strings: Vec::new(),
+            section_size: 9,
+            strings: vec![0], // Always starts with an empty string
         }
     }
 
@@ -584,12 +600,15 @@ impl StringPool {
         self.strings.extend_from_slice(string);
     }
 
-    pub fn write(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(self.section_size as usize);
+    pub fn write(&self, align: u32) -> Vec<u8> {
+        let padding = (align - (self.section_size % align)) % align;
+        let final_section_size = self.section_size + padding;
+
+        let mut out = Vec::with_capacity(final_section_size as usize);
         out.extend(StringPool::MAGIC);
-        out.extend(self.section_size.to_be_bytes());
-        out.push(0); // Padding?
+        out.extend(final_section_size.to_be_bytes());
         out.extend(&self.strings);
+        out.extend(vec![0; padding as usize]);
         out
     }
 
@@ -636,17 +655,19 @@ impl MessageIdTable {
         self.message_ids.push(message_id);
     }
 
-    pub fn write(&self) -> Vec<u8> {
-        debug!("Writing Message ID Table with {} message IDs", self.message_ids.len());
+    pub fn write(&self, align: u32) -> Vec<u8> {
+        let padding = (align - (self.section_size % align)) % align;
+        let final_section_size = self.section_size + padding;
 
-        let mut out = Vec::with_capacity(self.section_size as usize);
+        let mut out = Vec::with_capacity(final_section_size as usize);
         out.extend(MessageIdTable::MAGIC);
-        out.extend(self.section_size.to_be_bytes());
+        out.extend(final_section_size.to_be_bytes());
         out.extend(self.num_messages.to_be_bytes());
         out.push(self.format);
         out.push(self.info);
         out.extend(0u32.to_be_bytes()); // Padding
         out.extend(self.message_ids.iter().flat_map(|id| id.write()));
+        out.extend(vec![0; padding as usize]);
         out
     }
 
@@ -708,11 +729,15 @@ struct UnknownSection {
 }
 
 impl UnknownSection {
-    pub fn write(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(self.section_size as usize);
+    pub fn write(&self, align: u32) -> Vec<u8> {
+        let padding = (align - (self.section_size % align)) % align;
+        let final_section_size = self.section_size + padding;
+
+        let mut out = Vec::with_capacity(final_section_size as usize);
         out.extend(self.magic);
         out.extend(self.section_size.to_be_bytes());
         out.extend(&self.data);
+        out.extend(vec![0; padding as usize]);
         out
     }
 

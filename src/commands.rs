@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{ArgAction, Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[clap(name="cube", author, version, about, long_about = None)]
@@ -45,9 +45,9 @@ pub enum Commands {
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ExtractOptions {
-    #[clap(long)]
+    #[clap(long, default_value_t = false, action = ArgAction::Set)]
     pub extract_bti: bool,
 
-    #[clap(long, default_value_t = true)]
+    #[clap(long, default_value_t = true, action = ArgAction::Set)]
     pub extract_bmg: bool,
 }
