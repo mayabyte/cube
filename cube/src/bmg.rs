@@ -96,7 +96,9 @@ impl Bmg {
     }
 
     fn is_block_aligned(&self) -> bool {
-        self.header.encoding == TextEncoding::Undefined
+        self.header.encoding == TextEncoding::Undefined || self.header.encoding == TextEncoding::ShiftJIS
+        // ShiftJIS isn't said to be block aligned in the MKWii docs, but it appears
+        // to be based on Pikmin 2's main BMG file
     }
 
     fn message_id_table_mut(&mut self) -> &mut MessageIdTable {
@@ -118,10 +120,10 @@ impl Bmg {
                     .header
                     .encoding
                     .decode(&self.string_pool.strings[index_entry.text_offset as usize..]);
-                let index = self.message_id_table.as_ref().map(|mids| mids.message_ids[idx]);
+                let id = self.message_id_table.as_ref().map(|mids| mids.message_ids[idx]);
                 BmgMessage {
                     message,
-                    index,
+                    id,
                     attributes,
                 }
             })
@@ -150,7 +152,7 @@ impl Bmg {
             from_hex_string(&message.attributes).expect("Invalid hex string for message attributes"),
         );
         self.string_pool.add_message(&encoded_message);
-        if let Some(message_id) = message.index {
+        if let Some(message_id) = message.id {
             self.message_id_table_mut().add_message(message_id);
         }
         self.header.file_size = BmgHeader::SIZE as u32
@@ -212,7 +214,7 @@ impl<'de> Deserialize<'de> for Bmg {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BmgMessage {
     pub message: String,
-    pub index: Option<MessageId>,
+    pub id: Option<MessageId>,
     pub attributes: String,
 }
 
@@ -546,7 +548,7 @@ struct TextIndexEntry {
 impl TextIndexEntry {
     pub fn write(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(4 + self.attributes.len());
-        out.extend(self.text_offset.to_be_bytes());
+        out.extend((self.text_offset + 1).to_be_bytes());
         out.extend(&self.attributes);
         out
     }
@@ -586,6 +588,7 @@ impl StringPool {
         let mut out = Vec::with_capacity(self.section_size as usize);
         out.extend(StringPool::MAGIC);
         out.extend(self.section_size.to_be_bytes());
+        out.push(0); // Padding?
         out.extend(&self.strings);
         out
     }
@@ -634,6 +637,8 @@ impl MessageIdTable {
     }
 
     pub fn write(&self) -> Vec<u8> {
+        debug!("Writing Message ID Table with {} message IDs", self.message_ids.len());
+
         let mut out = Vec::with_capacity(self.section_size as usize);
         out.extend(MessageIdTable::MAGIC);
         out.extend(self.section_size.to_be_bytes());
