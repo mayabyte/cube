@@ -81,7 +81,10 @@ fn extract(vfile: VirtualFile, options: ExtractOptions) -> Result<Vec<VirtualFil
             Ok(extracted)
         }
         Some("szs") => {
-            let extracted_folder_path = vfile.path.clone();
+            let mut extracted_folder_path = vfile.path.clone();
+            if !options.szs_preserve_extension {
+                extracted_folder_path.set_extension("");
+            }
             let contents = extract_szs(vfile.bytes.clone())?;
 
             let mut extracted = Vec::new();

@@ -30,7 +30,7 @@ pub enum Commands {
         out: Option<PathBuf>,
 
         #[clap(flatten)]
-        extract_options: ExtractOptions,
+        options: ExtractOptions,
     },
 
     /// Pack a file into a GameCube file format
@@ -40,6 +40,9 @@ pub enum Commands {
 
         #[clap(short = 'o', long)]
         out: Option<PathBuf>,
+
+        #[clap(flatten)]
+        options: PackOptions,
     },
 }
 
@@ -50,4 +53,13 @@ pub struct ExtractOptions {
 
     #[clap(long, default_value_t = true, action = ArgAction::Set)]
     pub extract_bmg: bool,
+
+    #[clap(long, default_value_t = false, action = ArgAction::Set)]
+    pub szs_preserve_extension: bool,
+}
+
+#[derive(Debug, Clone, Copy, Args)]
+pub struct PackOptions {
+    #[clap(long, short = 'd', default_value_t = false)]
+    pub delete_originals: bool,
 }

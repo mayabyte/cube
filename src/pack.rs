@@ -1,37 +1,55 @@
+use cube_rs::{bmg::Bmg, rarc::Rarc, virtual_fs::VirtualFile, Encode};
+use log::info;
 use std::{
     error::Error,
-    fs::write,
+    fs::{remove_dir_all, remove_file, write},
     path::{Path, PathBuf},
 };
 
-use cube_rs::{bmg::Bmg, rarc::Rarc, virtual_fs::VirtualFile, Encode};
+use crate::commands::PackOptions;
 
-pub fn try_pack(file: PathBuf, out: Option<&Path>) -> Result<(), Box<dyn Error>> {
+pub fn try_pack(file: PathBuf, out: Option<&Path>, options: PackOptions) -> Result<(), Box<dyn Error>> {
+    if file.is_dir() {
+        for subfile in file.read_dir()? {
+            try_pack(subfile?.path(), None, options)?;
+        }
+    }
+
     let out_format = out.map(|p| {
         p.extension()
             .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
             .unwrap_or(String::from(""))
     });
     let vfile = pack(&file, out_format.as_deref())?;
-    write(out.unwrap_or(&vfile.path), &vfile.bytes)?;
+    if let Some(vfile) = vfile {
+        info!("Packing {:?} => {:?}", &file, &vfile.path);
+        write(out.unwrap_or(&vfile.path), &vfile.bytes)?;
+
+        if options.delete_originals {
+            if file.is_dir() {
+                remove_dir_all(&file)?;
+            } else {
+                remove_file(&file)?;
+            }
+        }
+    }
+
     Ok(())
 }
 
-/// Either returns the packed file if a packing scheme can be determined,
-/// or the original file contents unmodified if no packing scheme could be determined
-fn pack(path: &Path, format: Option<&str>) -> Result<VirtualFile, Box<dyn Error>> {
+fn pack(path: &Path, format: Option<&str>) -> Result<Option<VirtualFile>, Box<dyn Error>> {
     let dest_format = format.or(guess_dest_format(path));
     match dest_format {
-        Some("szs") => Ok(Rarc::encode(path)?),
+        Some("szs") => Ok(Some(Rarc::encode(path)?)),
         Some("bmg") => {
             let vfile = VirtualFile::read(path)?;
             let bmg: Bmg = serde_json::from_slice(&vfile.bytes)?;
-            Ok(VirtualFile {
-                path: path.with_extension(""), // Removes the last component of the extension ("json" in this case)
+            Ok(Some(VirtualFile {
+                path: path.with_extension("").with_extension("bmg"),
                 bytes: bmg.write(),
-            })
+            }))
         }
-        _ => Ok(VirtualFile::read(path)?),
+        _ => Ok(None),
     }
 }
 

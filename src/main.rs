@@ -15,12 +15,8 @@ pub fn main() -> Result<(), Box<dyn Error>> {
     init_logger(args.verbosity);
 
     match args.subcommand {
-        Commands::Extract {
-            files,
-            out,
-            extract_options,
-        } => try_extract(files, out.as_deref(), extract_options)?,
-        Commands::Pack { file, out } => try_pack(file, out.as_deref())?,
+        Commands::Extract { files, out, options } => try_extract(files, out.as_deref(), options)?,
+        Commands::Pack { file, out, options } => try_pack(file, out.as_deref(), options)?,
     }
 
     Ok(())
