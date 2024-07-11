@@ -16,7 +16,12 @@ pub fn main() -> Result<(), Box<dyn Error>> {
 
     match args.subcommand {
         Commands::Extract { files, out, options } => try_extract(files, out.as_deref(), options)?,
-        Commands::Pack { file, out, options } => try_pack(file, out.as_deref(), options)?,
+        Commands::Pack { file, mut out, options } => {
+            if out.is_none() && file.is_dir() {
+                out = Some(file.with_extension(options.arc_extension()));
+            }
+            try_pack(file, out.as_deref(), &options)?
+        }
     }
 
     Ok(())

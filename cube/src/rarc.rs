@@ -9,7 +9,6 @@ use std::{
 use itertools::Itertools;
 
 use crate::{
-    szs::yaz0_compress,
     util::{read_str_until_null, read_u16, read_u32},
     virtual_fs::VirtualFile,
     Decode, Encode,
@@ -50,6 +49,7 @@ impl<'a> Encode for Rarc<'a> {
             first_file_index: 0,
         }];
         let mut file_entries = vec![];
+        let mut non_dir_file_entries = 0;
         let mut string_table = vec![];
         let mut file_data = vec![];
 
@@ -79,7 +79,7 @@ impl<'a> Encode for Rarc<'a> {
                         name_offset: string_table.len() as u16,
                         data_size: 16, // always 16 for folders besides ROOT
                         data_offset_or_node_index: nodes.len() as u32,
-                        file_type_flags: 0x200, // Always this value for folders
+                        file_type_flags: 0x0200, // Always this value for folders
                     });
                     num_files += 1;
 
@@ -97,12 +97,13 @@ impl<'a> Encode for Rarc<'a> {
                     let file_name = dir_entry.file_name().to_string_lossy().into_owned();
                     file_entries.push(RarcFile {
                         name: file_name.clone(),
-                        index: file_entries.len() as u16,
+                        index: non_dir_file_entries,
                         name_offset: string_table.len() as u16,
                         data_size: data.len() as u32,
                         data_offset_or_node_index: file_data.len() as u32,
                         file_type_flags: 0x1100,
                     });
+                    non_dir_file_entries += 1;
                     string_table.extend(file_name.bytes());
                     string_table.push(b'\0');
                     file_data.extend(data);
@@ -126,15 +127,13 @@ impl<'a> Encode for Rarc<'a> {
                 name_offset: 0,
                 data_size: 16,
                 data_offset_or_node_index: node_idx as u32,
-                file_type_flags: 0x200,
+                file_type_flags: 0x0200,
             });
             let parent_node_idx = dir
                 .parent()
                 .map(|parent| {
                     let parent_node_name = to_node_name(&parent, &root)?;
-                    nodes
-                        .iter()
-                        .find_position(|node| &node.node_name == &parent_node_name)
+                    nodes.iter().find_position(|node| &node.node_name == &parent_node_name)
                 })
                 .flatten()
                 .map(|(idx, _)| idx as u32)
@@ -145,13 +144,18 @@ impl<'a> Encode for Rarc<'a> {
                 name_offset: 2,
                 data_size: 16,
                 data_offset_or_node_index: parent_node_idx,
-                file_type_flags: 0x200, // Always this value for folders
+                file_type_flags: 0x0200, // Always this value for folders
             });
 
             // Update this Node's number of files and first file index
             let node = &mut nodes[node_idx];
             node.num_files = num_files as u16;
             node.first_file_index = file_entries.len() as u32 - node.num_files as u32;
+        }
+
+        // Pad end of string table
+        while string_table.len() % 32 != 0 {
+            string_table.push(0);
         }
 
         // Construct the final header and info block
@@ -196,8 +200,8 @@ impl<'a> Encode for Rarc<'a> {
         final_file_data.extend(file_data);
 
         Ok(VirtualFile {
-            path: root.with_extension("szs"),
-            bytes: yaz0_compress(&final_file_data),
+            path: root.with_extension("arc"),
+            bytes: final_file_data,
         })
     }
 }
@@ -277,21 +281,17 @@ impl<'a> Rarc<'a> {
             .filter(|(_, file)| ![".", ".."].contains(&&file.name[..]))
             .map(|(mut path, file)| {
                 path.push(&file.name[..]);
-                let file_start =
-                    (self.header.file_data_list_offset + file.data_offset_or_node_index) as usize;
+                let file_start = (self.header.file_data_list_offset + file.data_offset_or_node_index) as usize;
                 let file_end = file_start + file.data_size as usize;
                 (path, &self.data[file_start..file_end])
             })
     }
 
     fn files_for_node(&self, node: &RarcNode, parent_path: PathBuf) -> Vec<(PathBuf, &RarcFile)> {
-        let file_entries = &self.files[node.first_file_index as usize
-            ..(node.first_file_index + node.num_files as u32) as usize];
+        let file_entries =
+            &self.files[node.first_file_index as usize..(node.first_file_index + node.num_files as u32) as usize];
         let (dirs, files): (Vec<_>, Vec<_>) = file_entries.iter().partition(|e| e.is_dir());
-        let mut files_with_paths: Vec<_> = files
-            .into_iter()
-            .map(|f| (parent_path.clone(), f))
-            .collect();
+        let mut files_with_paths: Vec<_> = files.into_iter().map(|f| (parent_path.clone(), f)).collect();
         for file in dirs {
             if ![".", ".."].contains(&&file.name[..]) {
                 let sub_node = &self.nodes[file.data_offset_or_node_index as usize];

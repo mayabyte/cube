@@ -20,11 +20,9 @@ pub fn extract_szs(data: Vec<u8>) -> Result<Vec<VirtualFile>, Yaz0Error> {
         .collect())
 }
 
-pub fn yaz0_compress(bytes: &[u8]) -> Vec<u8> {
+pub fn yaz0_compress(bytes: &[u8]) -> Result<Vec<u8>, Yaz0Error> {
     let mut out = Vec::new();
     let yaz0_writer = Yaz0Writer::new(&mut out);
-    yaz0_writer
-        .compress_and_write(bytes, yaz0::CompressionLevel::Lookahead { quality: 10 })
-        .expect("Yaz0 compression failed");
-    out
+    yaz0_writer.compress_and_write(bytes, yaz0::CompressionLevel::Lookahead { quality: 10 })?;
+    Ok(out)
 }

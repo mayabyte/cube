@@ -58,8 +58,22 @@ pub struct ExtractOptions {
     pub szs_preserve_extension: bool,
 }
 
-#[derive(Debug, Clone, Copy, Args)]
+#[derive(Debug, Clone, Args)]
 pub struct PackOptions {
     #[clap(long, short = 'd', default_value_t = false)]
     pub delete_originals: bool,
+
+    #[clap(long, default_value_t = true, action = ArgAction::Set)]
+    pub arc_yaz0_compress: bool,
+
+    #[clap(long)]
+    pub arc_extension: Option<String>,
+}
+
+impl PackOptions {
+    pub fn arc_extension(&self) -> &str {
+        self.arc_extension
+            .as_deref()
+            .unwrap_or_else(|| if self.arc_yaz0_compress { "szs" } else { "arc" })
+    }
 }

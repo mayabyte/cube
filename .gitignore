@@ -7,4 +7,6 @@
 *.iso
 *.bmg
 *.bmc
+*.btk
+*.blo
 *.bmg.json
