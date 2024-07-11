@@ -44,7 +44,7 @@ impl Bmg {
         for _ in 0..bmg.header.num_blocks {
             // align if necessary
             let alignment = bmg.block_padding();
-            while section_start % alignment != 0 {
+            while alignment != 0 && section_start % alignment != 0 {
                 section_start += 1;
             }
 

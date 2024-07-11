@@ -223,7 +223,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "cube_rs"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "encoding_rs",
  "gc-gcm",
@@ -236,7 +236,7 @@ dependencies = [
 
 [[package]]
 name = "cubetool"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "clap",
  "cube_rs",
