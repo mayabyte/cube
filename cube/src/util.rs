@@ -39,3 +39,13 @@ pub fn from_hex_string(string: &str) -> Result<Vec<u8>, ParseIntError> {
         .map(|idx| u8::from_str_radix(&string[idx * 2..(idx * 2) + 2], 16))
         .collect()
 }
+
+pub fn pad_to<const N: usize>(buf: &mut Vec<u8>) {
+    while buf.len() % N != 0 {
+        buf.push(0);
+    }
+}
+
+pub fn padded_index_to<const N: u32>(idx: u32) -> u32 {
+    (idx + (N - 1)) & !(N - 1)
+}

@@ -80,7 +80,7 @@ fn extract(vfile: VirtualFile, options: ExtractOptions) -> Result<Vec<VirtualFil
             info!("Extracted {path_string} into {} files", extracted.len());
             Ok(extracted)
         }
-        Some("szs") => {
+        Some("szs") | Some("arc") => {
             let mut extracted_folder_path = vfile.path.clone();
             if !options.szs_preserve_extension {
                 extracted_folder_path.set_extension("");

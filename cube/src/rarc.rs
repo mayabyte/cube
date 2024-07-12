@@ -9,7 +9,7 @@ use std::{
 use itertools::Itertools;
 
 use crate::{
-    util::{read_str_until_null, read_u16, read_u32},
+    util::{pad_to, padded_index_to, read_str_until_null, read_u16, read_u32},
     virtual_fs::VirtualFile,
     Decode, Encode,
 };
@@ -77,7 +77,7 @@ impl<'a> Encode for Rarc<'a> {
                         name: file_name.clone(),
                         index: 0xFFFF,
                         name_offset: string_table.len() as u16,
-                        data_size: 16, // always 16 for folders besides ROOT
+                        data_size: 16, // always 16 for folders
                         data_offset_or_node_index: nodes.len() as u32,
                         file_type_flags: 0x0200, // Always this value for folders
                     });
@@ -106,7 +106,7 @@ impl<'a> Encode for Rarc<'a> {
                     non_dir_file_entries += 1;
                     string_table.extend(file_name.bytes());
                     string_table.push(b'\0');
-                    file_data.extend(data);
+                    file_data.extend(data.into_iter().map(|b| b.to_be()));
                     num_files += 1;
                 }
             }
@@ -153,16 +153,11 @@ impl<'a> Encode for Rarc<'a> {
             node.first_file_index = file_entries.len() as u32 - node.num_files as u32;
         }
 
-        // Pad end of string table
-        while string_table.len() % 32 != 0 {
-            string_table.push(0);
-        }
-
         // Construct the final header and info block
         let node_list_offset = 0x20; // relative to start of info block
         let file_entries_list_offset = node_list_offset + (nodes.len() * 0x10) as u32;
-        let string_table_offset = file_entries_list_offset + (file_entries.len() * 0x14) as u32;
-        let file_data_list_offset = string_table_offset + string_table.len() as u32;
+        let string_table_offset = padded_index_to::<32>(file_entries_list_offset + (file_entries.len() * 0x14) as u32);
+        let file_data_list_offset = padded_index_to::<32>(string_table_offset + string_table.len() as u32);
         let final_file_length = file_data_list_offset + file_data.len() as u32 + 0x20;
         let header = RarcHeader {
             file_data_length: file_data.len() as u32,
@@ -183,8 +178,8 @@ impl<'a> Encode for Rarc<'a> {
         // header: 0x20
         // info block: 0x20
         // node list: num_nodes x 0x10
-        // file entry list: num_file_entries x 0x14
-        // string table
+        // file entry list: num_file_entries x 0x14 + pad to 0x20
+        // string table + pad to 0x20
         // file data
 
         let mut final_file_data = Vec::with_capacity(final_file_length as usize);
@@ -196,7 +191,9 @@ impl<'a> Encode for Rarc<'a> {
         for file_entry in file_entries {
             final_file_data.extend(file_entry.write());
         }
+        pad_to::<32>(&mut final_file_data);
         final_file_data.extend(string_table);
+        pad_to::<32>(&mut final_file_data);
         final_file_data.extend(file_data);
 
         Ok(VirtualFile {
@@ -345,6 +342,7 @@ impl RarcInfoBlock {
         out[0x10..0x14].copy_from_slice(&self.string_table_length.to_be_bytes());
         out[0x14..0x18].copy_from_slice(&self.string_table_offset.to_be_bytes());
         out[0x18..0x1A].copy_from_slice(&self.num_files.to_be_bytes());
+        out[0x1A] = 1; // Sync file IDs and indexes flag
         out
     }
 }
